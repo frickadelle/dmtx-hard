@@ -40,3 +40,17 @@ stock 69% vs dmtx-hard 86% on 29 code-bearing photos. A discriminating
 synthetic benchmark would need contiguous module-scale destruction
 (30-60% of the code area) - at that severity both approaches hit the RS
 capacity wall.
+
+## Library comparison (same 29 code-bearing photos)
+
+| library | decode rate | error rate | p50 | p95 |
+|---|---:|---:|---:|---:|
+| OpenCV BarcodeDetector | 0/29 (0%) | 100% | ~0 ms | ~0 ms |
+| zxing-wasm (stock) | 20/29 (69%) | 31% | ~240 ms | <1 s |
+| libdmtx (8 s timeout) | 22/29 (76%) | 24% | 8000 ms | 8000 ms |
+| **dmtx-hard** | **25/29 (86%)** | **13.8%** | **237 ms** | 75 s (budget cap) |
+
+Notes: libdmtx runs each image until its timeout, so every miss costs 8 s;
+dmtx-hard's p95 is its configurable rescue budget (tunable down for
+latency-sensitive use). Commercial SDKs (Cognex, Keyence) not evaluated -
+not available in this environment.
