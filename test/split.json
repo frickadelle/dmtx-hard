@@ -1,0 +1,12 @@
+{
+  "comment": "Seal-level split, frozen 2026-08-26. Duplicate 'Kopie' files excluded. Test seals must not influence any tuning decision; they are measured once at the end.",
+  "dev": ["IMG_2022", "IMG_2023", "IMG_2025", "IMG_2026", "IMG_2028", "IMG_2029",
+          "IMG_2031", "IMG_2032", "IMG_2034", "IMG_2039", "IMG_2041", "IMG_2042",
+          "IMG_2044", "IMG_2045", "IMG_2047"],
+  "test": ["IMG_2024", "IMG_2027", "IMG_2030", "IMG_2033", "IMG_2040", "IMG_2043", "IMG_2046"],
+  "shieldGroundTruth": {
+    "IMG_2023": "FRP", "IMG_2025": "5Wq", "IMG_2026": "M6V", "IMG_2028": "fJ8",
+    "IMG_2029": "MZ2", "IMG_2030": "N7e", "IMG_2031": "Vbe", "IMG_2039": "a8S",
+    "IMG_2040": "tKp", "IMG_2046": "SQZ"
+  }
+}
