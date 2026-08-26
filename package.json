@@ -5,7 +5,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "test": "bun run test/corpus.test.ts"
+    "test": "bun run test/corpus.test.ts",
+    "bench": "node test/bench.mjs --out docs/results.json",
+    "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/dmtx-hard.js",
+    "demo": "npm run build && python3 -m http.server 8734"
   },
   "dependencies": {
     "jpeg-js": "^0.4.4",

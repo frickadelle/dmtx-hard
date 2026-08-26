@@ -41,4 +41,6 @@ run:
 npm test   # node test/corpus.mjs
 ```
 
+Build: `npm run build` (bundle) · Demo: `npm run demo` → http://localhost:8734/demo · Benchmark: `npm run bench`
+
 Current status: see docs/results.md.
