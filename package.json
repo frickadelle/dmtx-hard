@@ -11,5 +11,8 @@
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
     "zxing-wasm": "^2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

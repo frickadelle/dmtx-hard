@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dmtx-hard demo</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
+  .drop { border: 2px dashed #555; border-radius: 12px; padding: 2.5rem; text-align: center; cursor: pointer; }
+  .drop.over { border-color: #6c6; background: #1a2a1a; }
+  img { max-width: 100%; margin-top: 1rem; border-radius: 8px; }
+  .hit { background: #1a2a1a; border: 1px solid #4a4; padding: .5rem .8rem; border-radius: 6px; margin: .4rem 0; font-family: ui-monospace, monospace; }
+  .miss { color: #a66; }
+  #status { color: #888; }
+</style>
+</head>
+<body>
+<h1>dmtx-hard</h1>
+<p>Robustes DataMatrix-Scanning für beschädigte Kennzeichen-Plaketten.</p>
+<div class="drop" id="drop">Foto hierher ziehen oder klicken <input type="file" id="file" accept="image/*" hidden></div>
+<img id="preview" hidden>
+<div id="results"></div>
+<div id="status"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

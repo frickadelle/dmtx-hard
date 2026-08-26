@@ -1,0 +1,139 @@
+{
+  "date": "2026-08-26T07:37:27.455Z",
+  "sources": [
+    {
+      "file": "IMG_2022.png",
+      "truth": "W078OJ13"
+    },
+    {
+      "file": "IMG_2025.png",
+      "truth": "W9510AO6"
+    },
+    {
+      "file": "IMG_2027.png",
+      "truth": "W9454NH9"
+    },
+    {
+      "file": "IMG_2028 Kopie.png",
+      "truth": "W9454NI0"
+    },
+    {
+      "file": "IMG_2028.png",
+      "truth": "W9454NI0"
+    },
+    {
+      "file": "IMG_2029 Kopie.png",
+      "truth": "W9510AP9"
+    },
+    {
+      "file": "IMG_2029.png",
+      "truth": "W9510AP9"
+    },
+    {
+      "file": "IMG_2030 Kopie.png",
+      "truth": "W9518GQ6"
+    },
+    {
+      "file": "IMG_2030.png",
+      "truth": "W9518GQ6"
+    },
+    {
+      "file": "IMG_2031 Kopie.png",
+      "truth": "W9518GR8"
+    },
+    {
+      "file": "IMG_2031.png",
+      "truth": "W9518GR8"
+    },
+    {
+      "file": "IMG_2032 Kopie.png",
+      "truth": "W9510AA8"
+    },
+    {
+      "file": "IMG_2032.png",
+      "truth": "W9510AA8"
+    },
+    {
+      "file": "IMG_2033 Kopie.png",
+      "truth": "W9509ZZ2"
+    },
+    {
+      "file": "IMG_2033.png",
+      "truth": "W9509ZZ2"
+    },
+    {
+      "file": "IMG_2034 Kopie.png",
+      "truth": "W9513WP3"
+    },
+    {
+      "file": "IMG_2034.png",
+      "truth": "W9513WP3"
+    },
+    {
+      "file": "IMG_2040.png",
+      "truth": "W9485HZ6"
+    },
+    {
+      "file": "IMG_2041.png",
+      "truth": "W9509IQ0"
+    },
+    {
+      "file": "IMG_2042.png",
+      "truth": "W9509IR2"
+    },
+    {
+      "file": "IMG_2044.png",
+      "truth": "SU173563"
+    },
+    {
+      "file": "pin-kennzeichen-freigelegt-vorne.jpg",
+      "truth": "TYV34174"
+    }
+  ],
+  "levels": [
+    0.2,
+    0.4,
+    0.6,
+    0.8
+  ],
+  "variantsPerLevel": 3,
+  "results": [
+    {
+      "level": 0.2,
+      "decoded": 66,
+      "total": 66,
+      "rate": 1,
+      "p50ms": 243,
+      "p95ms": 2104
+    },
+    {
+      "level": 0.4,
+      "decoded": 65,
+      "total": 66,
+      "rate": 0.9848,
+      "p50ms": 242,
+      "p95ms": 2084
+    },
+    {
+      "level": 0.6,
+      "decoded": 65,
+      "total": 66,
+      "rate": 0.9848,
+      "p50ms": 241,
+      "p95ms": 439
+    },
+    {
+      "level": 0.8,
+      "decoded": 65,
+      "total": 66,
+      "rate": 0.9848,
+      "p50ms": 158,
+      "p95ms": 1367
+    }
+  ],
+  "aggregate": {
+    "decoded": 261,
+    "total": 264,
+    "rate": 0.9886
+  }
+}
