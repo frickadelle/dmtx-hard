@@ -202,6 +202,7 @@ async function stageB(ch: Channels, opts: ScanOptions): Promise<ScanHit[]> {
     for (const frac of [0.09, 0.16]) {
       const half = Math.round(minDim * frac);
       if (half < 40) continue;
+      if (Date.now() > deadline) return rescueHits;
       const region = crop(ch.gray, px * up - half, py * up - half, px * up + half, py * up + half);
       await rescueScan(
         region,
@@ -214,7 +215,7 @@ async function stageB(ch: Channels, opts: ScanOptions): Promise<ScanHit[]> {
           }
           return r.text;
         },
-        { verbose: opts.verbose },
+        { verbose: opts.verbose, deadline },
       );
       if (rescueHits.length > 0 || Date.now() > deadline) return rescueHits;
     }

@@ -24,6 +24,8 @@ export interface RescueHit {
 }
 
 export interface SearchOptions {
+  /** absolute wall-clock deadline (Date.now() ms); search aborts after it */
+  deadline?: number;
   /** symbol sizes (even) to try */
   nValues?: number[];
   /** rotation search range in degrees */
@@ -368,7 +370,9 @@ export async function rescueScan(
   const peaks = densityPeaks(normed, opts.peaks ?? 6);
   const cands: Cand[] = [];
 
+  const deadline = opts.deadline ?? Number.POSITIVE_INFINITY;
   for (const [px, py] of peaks) {
+    if (Date.now() > deadline) break;
     const pitches = pitchCandidates(blurred);
     const top: Cand[] = []; // min-heap by score, bounded 40
     const pushTop = (c: Cand) => {
@@ -396,7 +400,9 @@ export async function rescueScan(
           const maxX = (n - 1 - half) * ux + (n - 1 - half) * vx;
           const maxY = (n - 1 - half) * uy + (n - 1 - half) * vy;
           for (let cy = span / 2; cy <= h - span / 2 + 0.01; cy += pitch) {
+            if (Date.now() > deadline) break;
             for (let cx = span / 2; cx <= w - span / 2 + 0.01; cx += pitch) {
+              if (Date.now() > deadline) break;
               if (cx + minX < 1 || cy + minY < 1) continue;
               if (cx + maxX > w - 2 || cy + maxY > h - 2) continue;
               const mu = sampleMu(blurred, cx, cy, pitch, n, ang);

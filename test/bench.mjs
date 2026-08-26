@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { PNG } from 'pngjs';
 import jpeg from 'jpeg-js';
 import { scanRGBA } from '../src/index.ts';
+import { readBarcodes } from 'zxing-wasm/reader';
 
 const DIR = process.env.CORPUS_DIR ?? '/tmp/dmtx/corpus';
 
@@ -43,12 +44,12 @@ function mulberry32(seed) {
  * over the image centre (where the seal sits) plus optional glare.
  * severity 0..1 controls coverage.
  */
-function damage(img, severity, rnd) {
+function damage(img, severity, rnd, bbox) {
   const { data, width: w, height: h } = img;
   const out = new Uint8ClampedArray(data);
-  const cx = w / 2;
-  const cy = h / 2;
-  const rad = Math.min(w, h) * 0.22;
+  const cx = bbox.x;
+  const cy = bbox.y;
+  const rad = bbox.r * 1.6;
   const strokes = Math.round(2 + severity * 14);
   for (let s = 0; s < strokes; s++) {
     const ang = rnd() * Math.PI * 2;
@@ -101,7 +102,37 @@ for (const f of files) {
   const img = decodeImage(`${DIR}/${f}`);
   const hits = await scanRGBA(img.data, img.width, img.height, { rescue: false, budgetMs: 6000 });
   const primary = hits.find((x) => /^[A-Z0-9]{6,10}$/.test(x.text));
-  if (primary) sources.push({ file: f, truth: primary.text, img });
+  if (!primary) continue;
+  // locate the code via a direct zxing pass to get its bbox
+  const { readBarcodes } = await import('zxing-wasm/reader');
+  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const small = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(img.width - 1, Math.round(x / scale));
+      const sy = Math.min(img.height - 1, Math.round(y / scale));
+      const si = (sy * img.width + sx) * 4;
+      const di = (y * w + x) * 4;
+      small[di] = img.data[si]; small[di + 1] = img.data[si + 1];
+      small[di + 2] = img.data[si + 2]; small[di + 3] = 255;
+    }
+  }
+  let bbox = { x: img.width / 2, y: img.height / 2, r: Math.min(img.width, img.height) * 0.1 };
+  try {
+    const res = await readBarcodes({ data: small, width: w, height: h }, { formats: ['DataMatrix'] });
+    if (res[0]?.position) {
+      const p = res[0].position;
+      const xs = [p.topLeft.x, p.topRight.x, p.bottomLeft.x, p.bottomRight.x];
+      const ys = [p.topLeft.y, p.topRight.y, p.bottomLeft.y, p.bottomRight.y];
+      const cx = ((Math.min(...xs) + Math.max(...xs)) / 2) / scale;
+      const cy = ((Math.min(...ys) + Math.max(...ys)) / 2) / scale;
+      const r = (Math.max(...xs) - Math.min(...xs)) / 2 / scale;
+      bbox = { x: cx, y: cy, r: Math.max(r, 30) };
+    }
+  } catch { /* keep centre default */ }
+  sources.push({ file: f, truth: primary.text, img, bbox });
 }
 console.error(`sources with clean decode: ${sources.length}`);
 
@@ -119,7 +150,7 @@ for (const level of LEVELS) {
   for (let v = 0; v < VARIANTS_PER_LEVEL; v++) {
     const rnd = mulberry32(1000 + Math.round(level * 100) * 31 + v);
     for (const src of sources) {
-      const damaged = damage(src.img, level, rnd);
+      const damaged = damage(src.img, level, rnd, src.bbox);
       const t0 = Date.now();
       let hit = null;
       try {
