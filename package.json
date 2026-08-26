@@ -1,0 +1,15 @@
+{
+  "name": "@finn/dmtx-hard",
+  "version": "0.1.0",
+  "description": "Robust DataMatrix scanning for damaged German registration seals - browser-first",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "bun run test/corpus.test.ts"
+  },
+  "dependencies": {
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0",
+    "zxing-wasm": "^2"
+  }
+}
