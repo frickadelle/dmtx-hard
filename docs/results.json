@@ -1,5 +1,5 @@
 {
-  "date": "2026-08-26T07:37:27.455Z",
+  "date": "2026-08-26T08:28:55.744Z",
   "sources": [
     {
       "file": "IMG_2022.png",
@@ -100,40 +100,40 @@
   "results": [
     {
       "level": 0.2,
-      "decoded": 66,
+      "decoded": 65,
       "total": 66,
-      "rate": 1,
-      "p50ms": 243,
-      "p95ms": 2104
+      "rate": 0.9848,
+      "p50ms": 249,
+      "p95ms": 4271
     },
     {
       "level": 0.4,
-      "decoded": 65,
+      "decoded": 64,
       "total": 66,
-      "rate": 0.9848,
-      "p50ms": 242,
-      "p95ms": 2084
+      "rate": 0.9697,
+      "p50ms": 248,
+      "p95ms": 4294
     },
     {
       "level": 0.6,
-      "decoded": 65,
+      "decoded": 66,
       "total": 66,
-      "rate": 0.9848,
-      "p50ms": 241,
-      "p95ms": 439
+      "rate": 1,
+      "p50ms": 246,
+      "p95ms": 2204
     },
     {
       "level": 0.8,
-      "decoded": 65,
+      "decoded": 60,
       "total": 66,
-      "rate": 0.9848,
-      "p50ms": 158,
-      "p95ms": 1367
+      "rate": 0.9091,
+      "p50ms": 245,
+      "p95ms": 21119
     }
   ],
   "aggregate": {
-    "decoded": 261,
+    "decoded": 255,
     "total": 264,
-    "rate": 0.9886
+    "rate": 0.9659
   }
 }

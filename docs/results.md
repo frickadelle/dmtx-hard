@@ -30,3 +30,13 @@ Raw JSON: results.json
 
 Verified in headless Chromium via demo page: intact seal decoded in
 602 ms, heavily damaged seal in 8 s (native-resolution crop ladder).
+
+## Benchmark caveat (honest)
+
+The scratch/glare simulation does NOT discriminate stock vs dmtx-hard:
+both score 96-100% on the synthetic samples because thin strokes stay
+within Reed-Solomon capacity. The real discriminator is the photo corpus:
+stock 69% vs dmtx-hard 86% on 29 code-bearing photos. A discriminating
+synthetic benchmark would need contiguous module-scale destruction
+(30-60% of the code area) - at that severity both approaches hit the RS
+capacity wall.
