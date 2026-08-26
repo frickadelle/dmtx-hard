@@ -72,3 +72,44 @@ dmtx-hard is 4-6x better on the shield KPI. Key mechanisms: no early exit
 on the first (easier) code, yellow-sticker localisation prior for the
 shield, and the erasure-capable ECC200 rescue decoder (FRP on IMG_2023 is
 only reachable that way).
+
+## Independent test set (Elixir-generated codes)
+
+Codes encoded with the Elixir library `0x8b/datamatrix` - a third
+implementation, independent of this project and of zxing - composited into
+synthetic seals (yellow shield sticker, guilloche, heraldic clutter) and
+damaged in graded steps: foil-peel strokes, glare, perspective, blur, noise.
+300 samples across 5 damage levels, ground truth from the payload label.
+
+### Decoder cross-check
+
+This project's ECC200 implementation on the 400 raw generated symbols:
+**400/400** - after fixing a real bug that the zxing-based tests could never
+expose. A legitimate ASCII codeword (`'E'` = 70) collides with the randomised
+pad value at position 3 of a 10x10 symbol, and the pad heuristic discarded it.
+Correct rule: the first pad codeword is always 129, randomised pads only
+follow it.
+
+### Recognition vs damage
+
+| damage | dmtx-hard | stock zxing | factor | ms/img |
+|---|---:|---:|---:|---:|
+| 0.0 | 100% | 100% | 1.0x | 26 |
+| 0.2 | 100% | 92% | 1.1x | 26 |
+| 0.4 | 97% | 67% | 1.4x | 258 |
+| 0.6 | 88% | 32% | 2.8x | 1342 |
+| 0.8 | 38% | 10% | 3.8x | 4276 |
+| **all** | **84.7%** | 60.0% | 1.4x | |
+
+Chase-II soft-decision decoding (flip subsets of the least reliable bits, RS
+verifies each candidate) contributed +2 points overall, +5 at the hardest level.
+
+### False positives
+
+300 samples: **254 correct, 0 wrong, 46 no result** - including the 13 hits
+from the rescue/Chase path. Reed-Solomon is a strict verifier (80 bits of
+redundancy at 14x14), syndromes are re-checked after correction, and an
+`accept` predicate gates the decoded text. The library stays silent rather
+than guessing wrong, which is the right failure direction for deregistration
+workflows. Caveat: 0/300 bounds the rate at ~1.2% (95% CI); ~3000 samples
+would be required to claim <0.1%.

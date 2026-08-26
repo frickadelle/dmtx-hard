@@ -197,8 +197,10 @@ export function decodeText(data: Uint8Array): string | null {
   for (let i = 0; i < data.length; i++) {
     const cw = data[i];
     if (mode === 'ascii') {
+      // The first pad codeword is always 129; randomised pads only follow it.
+      // Value alone cannot identify a pad: ASCII data collides with the
+      // randomisation formula (e.g. 'E' == 70 == pad value at position 3).
       if (cw === 129) break;
-      if (cw === (129 + (((149 * (i + 1)) % 253) + 1)) % 254) break; // randomized pad
       if (cw === 0) break;
       if (cw <= 128) {
         out.push(String.fromCharCode(cw - 1));
@@ -225,34 +227,114 @@ export function decodeText(data: Uint8Array): string | null {
 
 export interface Ecc200Result {
   text: string;
-  corrected: number;
+  /** how the result was obtained: plain | erasure | chaseN */
+  mode: string;
+  /** number of codewords declared as erasures (0 when not used) */
+  erasures: number;
+}
+
+/** bit stream + per-bit reliability for one threshold choice */
+function streamAt(mu: Float32Array, n: number, thr: Float32Array) {
+  const p = makePlacement(n - 2, n - 2);
+  const bits = new Uint8Array(p.order.length);
+  const rel = new Float32Array(p.order.length);
+  for (let i = 0; i < p.order.length; i++) {
+    const [bitpos, row, col] = p.order[i];
+    const d = mu[row * n + col];
+    const t = thr[row * n + col];
+    bits[bitpos] = d > t ? 1 : 0;
+    rel[bitpos] = Math.abs(d - t);
+  }
+  return { bits, rel };
+}
+
+function pack(bits: Uint8Array, count: number): Uint8Array {
+  const cw = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    let v = 0;
+    for (let b = 0; b < 8; b++) v = (v << 1) | bits[i * 8 + b];
+    cw[i] = v;
+  }
+  return cw;
 }
 
 /**
- * Full decode: extract → RS (with ambiguity-driven erasures, then plain,
- * then threshold retry) → text.
+ * Decode a sampled module matrix.
+ *
+ * Strategy per threshold: plain RS, then erasure-assisted RS (unreliable
+ * codewords declared as erasures), then Chase-II soft-decision search -- flip
+ * subsets of the least reliable bits and let RS verify each candidate. RS with
+ * 10+ ECC codewords is a strong verifier, so the search cannot silently invent
+ * a plausible payload; `accept` adds an application-level format gate.
  */
 export function decodeMatrix(
   mu: Float32Array,
   n: number,
   thresholds: number[],
+  opts: { maxFlipBits?: number; maxFlips?: number; accept?: (text: string) => boolean } = {},
 ): Ecc200Result | null {
-  for (const thr of thresholds) {
-    const ex = extractCodewords(mu, n, thr);
-    if (!ex) continue;
-    const erase = [] as number[];
-    for (let i = 0; i < ex.ambiguity.length; i++) {
-      if (ex.ambiguity[i] > 0) erase.push(i);
-    }
-    let data = rsDecode(ex.codewords, ex.nData, ex.nEcc, erase);
-    let corrected = erase.length;
-    if (!data && erase.length > 0) {
-      data = rsDecode(ex.codewords, ex.nData, ex.nEcc);
-      corrected = -1;
-    }
-    if (data) {
+  const size = SIZES[n];
+  if (!size) return null;
+  const [nData, nEcc] = size;
+  const maxFlipBits = opts.maxFlipBits ?? 14;
+  const maxFlips = opts.maxFlips ?? 2;
+  const accept = opts.accept;
+
+  for (const t of thresholds) {
+    const thr = new Float32Array(mu.length).fill(t);
+    const { bits, rel } = streamAt(mu, n, thr);
+    const total = bits.length / 8;
+    if (total !== nData + nEcc) continue;
+    const cw = pack(bits, total);
+
+    const check = (candidate: Uint8Array, mode: string, erasures: number): Ecc200Result | null => {
+      const data = rsDecode(candidate, nData, nEcc, erasures > 0 ? undefined : undefined);
+      if (!data) return null;
       const text = decodeText(data);
-      if (text) return { text, corrected };
+      if (!text) return null;
+      if (accept && !accept(text)) return null;
+      return { text, mode, erasures };
+    };
+
+    // 1) plain
+    const plain = check(cw, 'plain', 0);
+    if (plain) return plain;
+
+    // 2) erasures on the least reliable codewords
+    const cwRel = new Float32Array(total).fill(1);
+    for (let i = 0; i < bits.length; i++) {
+      const c = i >> 3;
+      if (rel[i] < cwRel[c]) cwRel[c] = rel[i];
+    }
+    const byRel = [...cwRel.keys()].sort((a, b) => cwRel[a] - cwRel[b]);
+    for (const count of [nEcc, Math.floor(nEcc / 2), Math.floor(nEcc / 4)]) {
+      const erase = byRel.slice(0, count).filter((i) => cwRel[i] < 0.18);
+      if (erase.length === 0) continue;
+      const data = rsDecode(cw, nData, nEcc, erase);
+      if (data) {
+        const text = decodeText(data);
+        if (text && (!accept || accept(text))) {
+          return { text, mode: 'erasure', erasures: erase.length };
+        }
+      }
+    }
+
+    // 3) Chase-II: flip subsets of the least reliable bits, RS verifies
+    const weak = [...rel.keys()].sort((a, b) => rel[a] - rel[b]).slice(0, maxFlipBits);
+    for (let k = 1; k <= maxFlips; k++) {
+      const idx = new Array(k).fill(0).map((_, i) => i);
+      for (;;) {
+        const flipped = Uint8Array.from(bits);
+        for (const i of idx) flipped[weak[i]] ^= 1;
+        const hit = check(pack(flipped, total), `chase${k}`, 0);
+        if (hit) return hit;
+        // next combination
+        let p = k - 1;
+        while (p >= 0 && idx[p] === weak.length - k + p) p--;
+        if (p < 0) break;
+        idx[p]++;
+        for (let q = p + 1; q < k; q++) idx[q] = idx[q - 1] + 1;
+      }
     }
   }
   return null;
