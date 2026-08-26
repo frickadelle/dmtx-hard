@@ -33,7 +33,7 @@ export function toChannels(
   // Native resolution is kept on purpose: seal codes are only ~100-200 px
   // wide in a 12 MP photo, so an early downscale destroys module detail.
   // The whole-frame pass downscales internally instead.
-  return { gray: { data: gray, width, height }, value: { data: value, width, height } };
+  return { gray: { data: gray, width, height }, value: { data: value, width, height }, rgba: data };
 }
 
 export async function scanRGBA(

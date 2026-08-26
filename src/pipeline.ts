@@ -15,6 +15,33 @@ import {
   otsuBin,
   adaptiveThresholdMean,
 } from './image.ts';
+
+/**
+ * Centroid of the largest yellow region (the seal's coat-of-arms sticker).
+ * The shield DataMatrix always sits on it, making yellow a strong localisation
+ * prior that heraldry-textured grey-scale peaks lack.
+ */
+function yellowCentroid(rgb: Uint8Array | Uint8ClampedArray, width: number, height: number): { x: number; y: number } | null {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  const step = Math.max(1, Math.round(Math.min(width, height) / 500));
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const j = (y * width + x) * 4;
+      const r = rgb[j];
+      const g = rgb[j + 1];
+      const b = rgb[j + 2];
+      // sticker yellow: r≈g, both well above blue; rejects the gold rim (r>g)
+      if (Math.abs(r - g) > 40 || g - b < 40 || g < 110 || r < 110) continue;
+      xs.push(x);
+      ys.push(y);
+    }
+  }
+  if (xs.length < 20) return null;
+  xs.sort((a, b) => a - b);
+  ys.sort((a, b) => a - b);
+  return { x: xs[xs.length >> 1], y: ys[ys.length >> 1] }; // median: robust to outliers
+}
 import { rescueScan, densityPeaks, normalize } from './rescue.ts';
 import type { RescueHit } from './rescue.ts';
 import { decodeMatrix } from './ecc200.ts';
@@ -31,7 +58,7 @@ export interface ScanOptions {
   maxDim?: number;
   /** run the expensive grid-rescue stage when stage A finds nothing */
   rescue?: boolean;
-  /** stop after the first decoded code instead of collecting all */
+  /** stop at the first decoded code (fast, but may miss the shield code) */
   firstOnly?: boolean;
   /** wall-clock budget for the stage-A ladder in ms (default 15000) */
   budgetMs?: number;
@@ -45,6 +72,8 @@ export interface Channels {
   gray: Gray;
   /** HSV value = max(r,g,b); survives coloured overprints better */
   value: Gray;
+  /** optional RGBA source for colour priors (yellow sticker) */
+  rgba?: Uint8Array | Uint8ClampedArray;
 }
 
 function asImageData(g: Gray) {
@@ -95,6 +124,33 @@ interface Region {
  * codes only ~150 px wide; a global downscale destroys module detail.
  */
 function regions(ch: Channels, maxDim: number): Region[] {
+  const { gray, value } = ch;
+  const minDim = Math.min(gray.width, gray.height);
+  const fscale = Math.min(1, maxDim / Math.max(gray.width, gray.height));
+  if (ch.rgba) {
+    const yc = yellowCentroid(ch.rgba, gray.width, gray.height);
+    if (yc) {
+      const out0: Region[] = [];
+      for (const frac of [0.07, 0.13]) {
+        const half = Math.round(minDim * frac);
+        if (half < 40) continue;
+        out0.push({
+          name: `yellow@${Math.round(yc.x)},${Math.round(yc.y)}/${frac}`,
+          ch: {
+            gray: crop(gray, yc.x - half, yc.y - half, yc.x + half, yc.y + half),
+            value: crop(value, yc.x - half, yc.y - half, yc.x + half, yc.y + half),
+          },
+          scales: [1, 1.8],
+          set: 'all',
+        });
+      }
+      return [...out0, ...regionsWithoutYellow(ch, maxDim)];
+    }
+  }
+  return regionsWithoutYellow(ch, maxDim);
+}
+
+function regionsWithoutYellow(ch: Channels, maxDim: number): Region[] {
   const { gray, value } = ch;
   const minDim = Math.min(gray.width, gray.height);
   const fscale = Math.min(1, maxDim / Math.max(gray.width, gray.height));
@@ -168,7 +224,8 @@ async function stageA(ch: Channels, opts: ScanOptions): Promise<ScanHit[]> {
               });
             }
           }
-          if (hits.length > 0 && opts.firstOnly !== false) return hits;
+          // stop as soon as the priority target (shield code) is found
+          if (hits.length > 0 && (opts.firstOnly || hits.some(isShieldHit))) return hits;
           if (Date.now() > deadline) return hits;
         }
       }
@@ -198,7 +255,12 @@ async function stageB(ch: Channels, opts: ScanOptions): Promise<ScanHit[]> {
   const rescueHits: ScanHit[] = [];
   const seen = new Set<string>();
   const deadline = Date.now() + (opts.rescueBudgetMs ?? 60000);
-  for (const [px, py] of peaks) {
+  const targets: Array<[number, number]> = [];
+  if (ch.rgba) {
+    const yc = yellowCentroid(ch.rgba, ch.gray.width, ch.gray.height);
+    if (yc) targets.push([yc.x, yc.y]);
+  }
+  for (const [px, py] of [...targets, ...peaks]) {
     for (const frac of [0.09, 0.16]) {
       const half = Math.round(minDim * frac);
       if (half < 40) continue;
@@ -223,10 +285,27 @@ async function stageB(ch: Channels, opts: ScanOptions): Promise<ScanHit[]> {
   return rescueHits;
 }
 
+const SHIELD_RE = /^[A-Za-z0-9]{3}$/;
+
+/** shield codes are the 3-character payloads printed on the coat of arms */
+const isShieldHit = (h: ScanHit) => SHIELD_RE.test(h.text);
+
+/**
+ * Scan channels for DataMatrix codes. By default the whole hypothesis ladder
+ * runs (no early exit) so the 3-character shield code is found even when the
+ * easier right-side code decodes first; shield codes sort first.
+ */
 export async function scanChannels(ch: Channels, opts: ScanOptions = {}): Promise<ScanHit[]> {
   const hits = await stageA(ch, opts);
-  if (hits.length > 0 || opts.rescue === false) return hits;
-  return stageB(ch, opts);
+  if (opts.firstOnly && hits.length > 0) return hits;
+  if (hits.some((h) => SHIELD_RE.test(h.text))) {
+    hits.sort((a, b) => Number(SHIELD_RE.test(b.text)) - Number(SHIELD_RE.test(a.text)));
+    return hits;
+  }
+  const rescue = opts.rescue === false ? [] : await stageB(ch, opts);
+  const all = [...rescue, ...hits];
+  all.sort((a, b) => Number(SHIELD_RE.test(b.text)) - Number(SHIELD_RE.test(a.text)));
+  return all;
 }
 
 export async function scanGray(gray: Gray, opts: ScanOptions = {}): Promise<ScanHit[]> {
