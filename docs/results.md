@@ -54,3 +54,21 @@ Notes: libdmtx runs each image until its timeout, so every miss costs 8 s;
 dmtx-hard's p95 is its configurable rescue budget (tunable down for
 latency-sensitive use). Commercial SDKs (Cognex, Keyence) not evaluated -
 not available in this environment.
+
+## Shield code (3-character payload) - the actual KPI
+
+The seal carries two codes: a 3-character code on the coat-of-arms shield
+(the one FINN needs) and a longer code right of it. Stock decoders almost
+always return only the easy right-side code.
+
+| library | shield code | any code | p50 |
+|---|---:|---:|---:|
+| OpenCV BarcodeDetector | 0/29 (0%) | 0/29 (0%) | ~0 ms |
+| zxing-wasm (stock) | 2/29 (6.9%) | 19/29 (65.5%) | 31 ms |
+| libdmtx (8 s timeout) | 3/29 (10.3%) | 22/29 (75.9%) | 8000 ms |
+| **dmtx-hard** | **12/29 (41.4%)** | 25/29 (86.2%) | ~240 ms easy / 75 s hard |
+
+dmtx-hard is 4-6x better on the shield KPI. Key mechanisms: no early exit
+on the first (easier) code, yellow-sticker localisation prior for the
+shield, and the erasure-capable ECC200 rescue decoder (FRP on IMG_2023 is
+only reachable that way).
